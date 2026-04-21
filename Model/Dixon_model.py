@@ -2,10 +2,6 @@
 # This is another immunotherapy model involving IL-2, CD4+, CD8+ and NK cells.
 # the Dixon model is unused but the project could be expanded to include it later.
 
-import numpy as np
-import pandas as pd
-import pygad
-
 # Dixon eqs. 1-4
 def dixon_dI_dt(beta, C1, I, mu_0, s):
     """

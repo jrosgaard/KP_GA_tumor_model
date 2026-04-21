@@ -1,11 +1,6 @@
 # Population plotting function
 # This module contains functions for plotting population dynamics and fitness over generations.
 
-# import plotly
-import plotly.express as px
-import plotly.io as pio
-pio.renderers.default = "plotly_mimetype"
-
 def plot_pop(population1, population2, population3, title="Population Dynamics over Generations", xlabel="Generation", ylabel="Population", xrange=None, yrange=None):
     """
     Plots the population over generations.
@@ -98,18 +93,18 @@ def plot_quad(t, tau, fitness_history, x, y, z, population1, population2, popula
     import os
     import matplotlib.pyplot as plt
 
-    time = t
+    time = tau
 
     # create subplots    
     fig, axes = plt.subplots(2, 2, figsize=(10, 8))
 
     plt.subplot(2, 2, 1)
     
-    plt.plot(t, x, color='blue', label='x(t)')
-    plt.plot(t, y, color='red', label='y(t)')
-    plt.plot(t, z, color='green', label='z(t)')
+    plt.plot(time, x, color='blue', label='x(t)')
+    plt.plot(time, y, color='red', label='y(t)')
+    plt.plot(time, z, color='green', label='z(t)')
     plt.title("Populations over Time")
-    plt.xlabel('Time')
+    plt.xlabel('tau')
     plt.ylabel('Population')
     
     yrange_pop = None
@@ -126,7 +121,7 @@ def plot_quad(t, tau, fitness_history, x, y, z, population1, population2, popula
     plt.plot(time, population2, color='red', label='Tumor Cells')
     plt.plot(time, population3, color='green', label='IL-2 Levels')
     plt.title("Populations over Time")
-    plt.xlabel('Time')
+    plt.xlabel('tau')
     plt.ylabel('Population')
     
     yrange_pop = None
@@ -139,9 +134,9 @@ def plot_quad(t, tau, fitness_history, x, y, z, population1, population2, popula
     plt.subplot(2, 2, 3)
     generations_treatment = list(range(len(s_1)))
     plt.plot(time, s_1, color='orange', label=' Ext. Immune cells  s_1')
-    plt.plot(time, s_2, color='cyan', label='Ext. IL-2 dosing s_2')
+    plt.plot(time, s_2, color='purple', label='Ext. IL-2 dosing s_2')
     plt.title("Treatment over Time")
-    plt.xlabel('Time')
+    plt.xlabel('tau')
     plt.ylabel('Dose')
     
     yrange_fit = None
@@ -197,14 +192,14 @@ def plot_quad_update(axes, t, tau, fitness_history, x, y, z, population1, popula
     for ax in axes.ravel():
         ax.clear()
 
-    time = t
+    time = tau
 
     # create subplots
-    ax1.plot(t, x, color='blue', label='x(t)')
-    ax1.plot(t, y, color='red', label='y(t)')
-    ax1.plot(t, z, color='green', label='z(t)')
+    ax1.plot(time, x, color='blue', label='x(t)')
+    ax1.plot(time, y, color='red', label='y(t)')
+    ax1.plot(time, z, color='green', label='z(t)')
     ax1.set_title("Populations over Time")
-    ax1.set_xlabel('Time')
+    ax1.set_xlabel('tau')
     ax1.set_ylabel('Population')
     
     yrange_pop = None
@@ -219,7 +214,7 @@ def plot_quad_update(axes, t, tau, fitness_history, x, y, z, population1, popula
     ax2.plot(time, population2, color='red', label='Tumor Cells')
     ax2.plot(time, population3, color='green', label='IL-2 Levels')
     ax2.set_title("Populations over Time")
-    ax2.set_xlabel('Time')
+    ax2.set_xlabel('tau')
     ax2.set_ylabel('Population')
     
     yrange_pop = None
@@ -231,9 +226,9 @@ def plot_quad_update(axes, t, tau, fitness_history, x, y, z, population1, popula
 
     generations_treatment = list(range(len(s_1)))
     ax3.plot(time, s_1, color='orange', label=' Ext. Immune cells  s_1')
-    ax3.plot(time, s_2, color='cyan', label='Ext. IL-2 dosing s_2')
+    ax3.plot(time, s_2, color='purple', label='Ext. IL-2 dosing s_2')
     ax3.set_title("Treatment over Time")
-    ax3.set_xlabel('Time')
+    ax3.set_xlabel('tau')
     ax3.set_ylabel('Dose')
     
     yrange_fit = None
@@ -287,15 +282,15 @@ def plot_doub_update(axes, t, tau, x, y, z, population1, population2, population
         ax.clear()
 
 
-    time = t
+    time = tau
 
     # create subplots
     
-    ax1.plot(t, x, color='blue', label='x(t)')
-    ax1.plot(t, y, color='red', label='y(t)')
-    ax1.plot(t, z, color='green', label='z(t)')
+    ax1.plot(time, x, color='blue', label='x(t)')
+    ax1.plot(time, y, color='red', label='y(t)')
+    ax1.plot(time, z, color='green', label='z(t)')
     ax1.set_title("Populations over Time")
-    ax1.set_xlabel('Time')
+    ax1.set_xlabel('tau')
     ax1.set_ylabel('Population')
     
     yrange_pop = None
@@ -308,7 +303,7 @@ def plot_doub_update(axes, t, tau, x, y, z, population1, population2, population
     ax2.plot(time, population2, color='red', label='Tumor Cells')
     ax2.plot(time, population3, color='green', label='IL-2 Levels')
     ax2.set_title("Populations over Time")
-    ax2.set_xlabel('Time')
+    ax2.set_xlabel('tau')
     ax2.set_ylabel('Population')
     
     yrange_pop = None
