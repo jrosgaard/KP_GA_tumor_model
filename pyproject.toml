@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kirschner-panetta-immunotherapy"
+version = "0.1.0"
+description = "Genetic algorithm optimization of immunotherapy dosing in the Kirschner-Panetta tumor immunotherapy model."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE.txt" }
+authors = [
+  { name = "Johan Rosgaard" }
+]
+dependencies = [
+  "ipywidgets",
+  "jupyter",
+  "jupyterlab",
+  "lxml",
+  "matplotlib",
+  "notebook",
+  "numpy",
+  "pandas",
+  "plotly",
+  "psutil",
+  "pygad",
+  "requests",
+  "scikit-learn",
+  "scipy",
+  "seaborn",
+  "tabulate",
+  "tqdm",
+  "umap-learn",
+]
+
+[tool.setuptools]
+packages = ["GA", "Model", "Visualization"]
