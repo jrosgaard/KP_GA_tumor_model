@@ -97,6 +97,26 @@ class GeneticAlgorithm:
         return max(0, s_1), max(0, s_2)
 
     @staticmethod
+    def fitness_func_batch(ga_instance, solutions, solution_indices):
+        """PyGAD batch callback: evaluate all supplied candidates in one C call.
+
+        Set fitness_batch_size > 1 in pygad.GA to use this callback. PyGAD may
+        send a partial batch, including a single row, when it reuses fitnesses.
+        The original fitness_func remains available as a Python reference.
+        """
+        from GA.native_fitness import evaluate_population
+
+        del solution_indices
+        environment = GeneticAlgorithm._get_environment(ga_instance)
+        return evaluate_population(
+            population=solutions,
+            state=[environment["x"], environment["y"], environment["z"]],
+            model_params=GeneticAlgorithm._get_model_params(environment),
+            fitness_weights=GeneticAlgorithm._get_fitness_weights(environment),
+            t_step=environment.get("t_step", 1.0),
+        )
+
+    @staticmethod
     def fitness_func(ga_instance, solution, solution_idx):
         """
         Fitness function maximizing effector response while penalizing tumor burden

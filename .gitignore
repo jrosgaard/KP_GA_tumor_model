@@ -3,3 +3,7 @@ __pycache__/
 .ipynb_checkpoints/
 .env
 .DS_Store
+GA/_population_fitness.dylib
+GA/_population_fitness.so
+Model/_integration.dylib
+Model/_integration.so
