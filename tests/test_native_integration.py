@@ -109,3 +109,88 @@ def test_python_entry_point_preserves_default_and_supports_c(params):
         np.testing.assert_allclose(result, exact_solution(0.37), rtol=3e-4)
     with pytest.raises(ValueError, match="method"):
         integrator.integrate([1, 2, 3], params, [0, 1], method="invalid")
+
+
+@pytest.mark.parametrize('method,tolerance', [('euler', 3e-3), ('rk4', 2e-6)])
+@pytest.mark.parametrize('effector', [100., 1000.])
+def test_fast_tumor_killing_stays_nonnegative_and_matches_stiff_solver(method, tolerance, effector):
+    # The former h=.01 solver produced y=-221 at x=100 in this interval.
+    # These are the notebook's nondimensional KP coefficients.
+    params = [0.165, 1/6, 0.1245/0.18, 2e5, 0,
+              1, 1e-4, 1/0.18, 1, 5e5/18, .01, 10/0.18, 0]
+    state = [effector, .001, 1.]
+    reference = solve_ivp(kp_coupled, [0, .36], state, args=tuple(params),
+                          method='Radau', rtol=1e-11, atol=1e-14)
+    assert reference.success
+    result = integrate_native(state, params, [0, .36], method=method)
+    assert np.isfinite(result).all() and (result >= 0).all()
+    # Euler still needs refinement for accuracy even after stability is fixed.
+    if method == 'euler':
+        result = integrate_native(state, params, [0, .36], method=method, t_step=1e-6)
+    np.testing.assert_allclose(result, reference.y[:, -1], rtol=tolerance, atol=1e-9)
+
+
+@pytest.mark.parametrize('method', ['euler', 'rk4'])
+def test_large_dose_never_accepts_negative_intermediate_tumor(method):
+    params = [0.165, 1/6, 0.1245/0.18, 2e5, 1e5,
+              1, 1e-4, 1/0.18, 1, 5e5/18, .01, 10/0.18, 0]
+    result = integrate_native([0, .001, 1], params, [0, .01], method=method)
+    assert np.isfinite(result).all() and (result >= 0).all()
+    reference = solve_ivp(kp_coupled, [0, .01], [0, .001, 1], args=tuple(params),
+                          method='Radau', rtol=1e-11, atol=1e-14)
+    # Stability does not supply error control; verify convergence with a
+    # suitably small maximum step for this deliberately abrupt treatment.
+    result = integrate_native([0, .001, 1], params, [0, .01], method=method,
+                              t_step=1e-6 if method == 'euler' else 1e-4)
+    np.testing.assert_allclose(result, reference.y[:, -1],
+                               rtol=.04 if method == 'euler' else 1e-4, atol=1e-9)
+
+
+def test_loaded_library_reports_stability_limited_version():
+    from Model.native_integration import integrator_version
+    assert integrator_version() == 3
+
+
+def test_stale_library_is_rejected_before_any_simulation(monkeypatch):
+    from types import SimpleNamespace
+    from Model import native_integration as native
+    version = lambda: 1
+    native._load_library.cache_clear()
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(native.ctypes, 'CDLL', lambda path: SimpleNamespace(kp_integrator_version=version))
+            with pytest.raises(RuntimeError, match='incompatible'):
+                native.integrator_version()
+    finally:
+        native._load_library.cache_clear()
+
+
+def test_signed_antigenicity_experiment_matches_independent_solver():
+    params = [-.005/.18, 1/6, .1245/.18, 2e5, 0,
+              1, 1e-4, 1/.18, 1, 5e5/18, .01, 10/.18, 0]
+    state = [-200., 1e4, -1e5]
+    reference = solve_ivp(kp_coupled, [0, .36], state, args=tuple(params),
+                          method='Radau', rtol=1e-11, atol=1e-12)
+    assert reference.success
+    actual = integrate_native(state, params, [0, .36], method='rk4')
+    assert actual[0] < 0 and actual[1] > 0 and actual[2] < 0
+    np.testing.assert_allclose(actual, reference.y[:, -1], rtol=2e-6, atol=1e-9)
+
+
+def test_signed_fast_tumor_killing_cannot_numerically_flip_tumor():
+    # A negative c previously disabled every stability check, even while x>0.
+    params = [-.005/.18, 1/6, .1245/.18, 2e5, 0,
+              1, 1e-4, 1/.18, 1, 5e5/18, .01, 10/.18, 0]
+    state = [1914., .001, 1.]
+    reference = solve_ivp(kp_coupled, [0, .36], state, args=tuple(params),
+                          method='Radau', rtol=1e-11, atol=1e-14)
+    actual = integrate_native(state, params, [0, .36], method='rk4')
+    assert actual[1] >= 0
+    np.testing.assert_allclose(actual, reference.y[:, -1], rtol=2e-6, atol=1e-9)
+
+
+@pytest.mark.parametrize('method', ['euler', 'rk4'])
+def test_signed_trial_cannot_jump_across_a_model_pole(method):
+    params = [0, 0, .01, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1]
+    with pytest.raises(FloatingPointError):
+        integrate_native([1, 1, -.5], params, [0, 1], method=method, t_step=1)

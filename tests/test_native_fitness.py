@@ -9,8 +9,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from GA.fitness_function import GeneticAlgorithm
-from GA.native_fitness import build_library, evaluate_population
+from GA.fitness_function_KP import GeneticAlgorithmKP
+from GA.native_fitness_KP import build_library, evaluate_population
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -21,7 +21,7 @@ def compiled_library():
 def reference(population, environment):
     ga = SimpleNamespace(environment=environment)
     return np.array([
-        GeneticAlgorithm.fitness_func(ga, row, index)
+        GeneticAlgorithmKP.fitness_func(ga, row, index)
         for index, row in enumerate(population)
     ])
 
@@ -43,7 +43,7 @@ def test_matches_reference_with_overrides(count, scale):
         "c": 0.12,
         "fitness_weights": {"a1": 0.23, "b3": 0.04, "c2": 1.7},
     }
-    actual = GeneticAlgorithm.fitness_func_batch(
+    actual = GeneticAlgorithmKP.fitness_func_batch(
         SimpleNamespace(environment=environment), population, list(range(count))
     )
     np.testing.assert_allclose(actual, reference(population, environment), rtol=1e-12, atol=1e-10)
@@ -58,7 +58,7 @@ def test_default_parameters_and_clipped_inputs():
         [0, 0, 0, 2, -1, 0, 0, 0],  # Only s_2 is clipped.
     ])
     environment = {"t": 0, "x": 1.0, "y": 1.0, "z": 1.0}
-    actual = GeneticAlgorithm.fitness_func_batch(SimpleNamespace(environment=environment), population, None)
+    actual = GeneticAlgorithmKP.fitness_func_batch(SimpleNamespace(environment=environment), population, None)
     np.testing.assert_allclose(actual, reference(population, environment), rtol=1e-12)
     assert actual[0] == actual[1]
 
@@ -68,7 +68,7 @@ def test_noncontiguous_population_is_copied_without_mutation():
     population = storage[:, ::2]
     original = storage.copy()
     environment = {"t": 0, "x": 1.5, "y": 2.0, "z": 0.5}
-    actual = GeneticAlgorithm.fitness_func_batch(SimpleNamespace(environment=environment), population, None)
+    actual = GeneticAlgorithmKP.fitness_func_batch(SimpleNamespace(environment=environment), population, None)
     # The C boundary deliberately promotes float32 genes to float64 arithmetic.
     np.testing.assert_allclose(actual, reference(population.astype(np.float64), environment), rtol=1e-12)
     np.testing.assert_array_equal(storage, original)
@@ -77,8 +77,8 @@ def test_noncontiguous_population_is_copied_without_mutation():
 
 def evaluate(population, state=(1.0, 1.0, 1.0), t_step=1.0):
     return evaluate_population(
-        population, state, GeneticAlgorithm.DEFAULT_MODEL_PARAMS,
-        GeneticAlgorithm.DEFAULT_FITNESS_WEIGHTS, t_step,
+        population, state, GeneticAlgorithmKP.DEFAULT_MODEL_PARAMS,
+        GeneticAlgorithmKP.DEFAULT_FITNESS_WEIGHTS, t_step,
     )
 
 
@@ -117,14 +117,14 @@ def test_actual_pygad_batch_run_matches_scalar_run():
     environment = {"t": 0, "x": 1.5, "y": 2.0, "z": 0.5, "t_step": 0.36}
     runs = []
     for callback, batch_size in (
-        (GeneticAlgorithm.fitness_func, None),
-        (GeneticAlgorithm.fitness_func_batch, 5),  # Includes a short final batch.
+        (GeneticAlgorithmKP.fitness_func, None),
+        (GeneticAlgorithmKP.fitness_func_batch, 5),  # Includes a short final batch.
     ):
         ga = pygad.GA(
             num_generations=4, num_parents_mating=4,
             initial_population=population.copy(), fitness_func=callback,
             fitness_batch_size=batch_size, random_seed=5300, mutation_num_genes=2,
-            on_generation=GeneticAlgorithm.on_generation,
+            on_generation=GeneticAlgorithmKP.on_generation,
         )
         ga.environment = environment.copy()
         ga.run()

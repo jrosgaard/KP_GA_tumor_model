@@ -1,5 +1,9 @@
-# Population plotting function
-# This module contains functions for plotting population dynamics and fitness over generations.
+"""
+Population plotting function
+
+This module contains functions for plotting population dynamics and fitness over generations.
+"""
+
 
 def plot_pop(population1, population2, population3, title="Population Dynamics over Generations", xlabel="Generation", ylabel="Population", xrange=None, yrange=None):
     """
@@ -80,7 +84,9 @@ def pop_fit_plot(fitness_history, population1, population2, population3, title="
     plt.legend(loc='upper right')
     #plt.savefig("fitness_over_generations.png")
 
-def plot_quad(t, tau, fitness_history, x, y, z, population1, population2, population3, s_1, s_2, title="Populations and Fitness", yrange=None):
+
+
+def plot_quad_kp(t, tau, fitness_history, x, y, z, population1, population2, population3, s_1, s_2, title="Populations and Fitness", yrange=None):
     """
     Plots the fitness over generations.
 
@@ -162,6 +168,57 @@ def plot_quad(t, tau, fitness_history, x, y, z, population1, population2, popula
     #plt.savefig("fitness_over_generations.png")
 
     return fig, axes
+
+
+def plot_quad_dixon(data, *, title="Populations and Fitness", log_scale=False, yrange=None):
+    """KP-style four-panel plot with Dixon's additional population.
+
+    data contains tau, C1, C2, I, T, their barred counterparts, s, and Fitness.
+    Panels show nondimensional populations, dimensional populations,
+    treatment, and fitness, in the same order as plot_quad_kp.
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    time = data['tau']
+    populations = [
+        ('C1', 'C1(t)', 'CD4+ Cells', 'blue'),
+        ('C2', 'C2(t)', 'CD8+ and NK Cells', 'orange'),
+        ('I', 'I(t)', 'IL-2 Levels', 'green'),
+        ('T', 'T(t)', 'Tumor Cells', 'red'),
+    ]
+    for column, scaled_label, dimensional_label, color in populations:
+        for ax, key, label in [
+            (axes[0, 0], column, scaled_label),
+            (axes[0, 1], column + '_bar', dimensional_label),
+        ]:
+            values = np.asarray(data[key], dtype=float)
+            if log_scale:
+                values = np.where(values > 0, values, np.nan)
+            ax.plot(time, values, color=color, label=label)
+
+    for ax in axes[0]:
+        ax.set(title="Populations over Time", xlabel="tau", ylabel="Population")
+        if log_scale:
+            ax.set_yscale('log')
+        if yrange is not None:
+            ax.set_ylim(yrange)
+
+    axes[1, 0].plot(time, data['s'], color='purple', label='Ext. IL-2 dosing s')
+    axes[1, 0].set(title="Treatment over Time", xlabel="tau", ylabel="Dose")
+
+    fitness_history = data['Fitness']
+    axes[1, 1].plot(range(len(fitness_history)), fitness_history, color='purple', label='Fitness')
+    axes[1, 1].set(title="Fitness over Generations", xlabel="Generation", ylabel="Fitness")
+
+    for ax in axes.flat:
+        ax.grid(True)
+        ax.legend(loc='upper right')
+    if title != "Populations and Fitness":
+        fig.suptitle(title)
+    return fig, axes
+
 
 def plot_quad_init():
     import os

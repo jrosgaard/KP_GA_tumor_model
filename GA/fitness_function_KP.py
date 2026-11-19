@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from Model.KP_model import dx_dt, dy_dt, dz_dt
 
 
-class GeneticAlgorithm:
+class GeneticAlgorithmKP:
     """
     Helper methods for the GA controller used with the non-dimensional KP model.
     """
@@ -104,15 +104,15 @@ class GeneticAlgorithm:
         send a partial batch, including a single row, when it reuses fitnesses.
         The original fitness_func remains available as a Python reference.
         """
-        from GA.native_fitness import evaluate_population
+        from GA.native_fitness_KP import evaluate_population
 
         del solution_indices
-        environment = GeneticAlgorithm._get_environment(ga_instance)
+        environment = GeneticAlgorithmKP._get_environment(ga_instance)
         return evaluate_population(
             population=solutions,
             state=[environment["x"], environment["y"], environment["z"]],
-            model_params=GeneticAlgorithm._get_model_params(environment),
-            fitness_weights=GeneticAlgorithm._get_fitness_weights(environment),
+            model_params=GeneticAlgorithmKP._get_model_params(environment),
+            fitness_weights=GeneticAlgorithmKP._get_fitness_weights(environment),
             t_step=environment.get("t_step", 1.0),
         )
 
@@ -124,9 +124,9 @@ class GeneticAlgorithm:
         """
         del solution_idx
 
-        environment = GeneticAlgorithm._get_environment(ga_instance)
-        model_params = GeneticAlgorithm._get_model_params(environment)
-        fitness_weights = GeneticAlgorithm._get_fitness_weights(environment)
+        environment = GeneticAlgorithmKP._get_environment(ga_instance)
+        model_params = GeneticAlgorithmKP._get_model_params(environment)
+        fitness_weights = GeneticAlgorithmKP._get_fitness_weights(environment)
 
         t = environment["t"]
         x = environment["x"]
@@ -134,7 +134,7 @@ class GeneticAlgorithm:
         z = environment["z"]
         t_step = environment.get("t_step", 1.0)
 
-        s_1, s_2 = GeneticAlgorithm.solution_to_inputs(solution, x, y, z)
+        s_1, s_2 = GeneticAlgorithmKP.solution_to_inputs(solution, x, y, z)
 
         x_pred = x + dx_dt(
             t=t,

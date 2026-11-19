@@ -1,6 +1,6 @@
 """Build and call the C population evaluator using Python's standard ctypes.
 
-Build from the project root with: python3 -m GA.native_fitness --build
+Build from the project root with: python3 -m GA.native_fitness_KP --build
 The compiler is needed only for that command, not for each fitness evaluation.
 """
 
@@ -16,14 +16,14 @@ import sys
 import numpy as np
 
 
-# These orders are part of the C interface; see population_fitness.c.
+# These orders are part of the C interface; see population_fitness_KP.c.
 MODEL_KEYS = (
     "c", "mu_2", "p_1", "g_1", "r_2", "b", "alpha", "g_2", "p_2", "g_3", "mu_3"
 )
 WEIGHT_KEYS = ("a1", "a2", "b1", "b2", "b3", "b4", "c1", "c2")
-SOURCE_PATH = Path(__file__).with_name("population_fitness.c")
+SOURCE_PATH = Path(__file__).with_name("population_fitness_KP.c")
 LIBRARY_PATH = SOURCE_PATH.with_name(
-    "_population_fitness.dylib" if sys.platform == "darwin" else "_population_fitness.so"
+    "_population_fitness_KP.dylib" if sys.platform == "darwin" else "_population_fitness_KP.so"
 )
 
 
@@ -52,7 +52,7 @@ def _load_library():
     except OSError as error:
         raise RuntimeError(
             "Cannot load the C fitness library. From the project root, run "
-            "'python3 -m GA.native_fitness --build', then restart your kernel."
+            "'python3 -m GA.native_fitness_KP --build', then restart your kernel."
         ) from error
 
     # ctypes needs the exact C signature. Without it, a wrong pointer or integer

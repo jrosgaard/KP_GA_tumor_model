@@ -14,8 +14,28 @@ def _parse_optional_float(value):
         return np.nan
     return float(value)
 
+
+def load_data(filepath: str, model: str) -> tuple:
+    """
+    Load data from a CSV file based on the specified model.
+
+    Parameters:
+    - filepath: str, path to the CSV file.
+    - model: str, either 'kp' or 'dixon' to specify the data format.
+
+    Returns:
+    - tuple of lists containing the data columns.
+    """
+    if model == 'kp':
+        return _load_data_kp(filepath)
+    elif model == 'dixon':
+        return _load_data_dixon(filepath)
+    else:
+        raise ValueError(f"Unknown model: {model}")
+
+
 # Function to load data from a CSV file
-def load_data(filepath):
+def _load_data_kp(filepath):
     file_path = filepath
     print(f"Reading data from {file_path}")
     with open(file_path, 'r', newline='') as csvfile:
@@ -43,21 +63,66 @@ def load_data(filepath):
     return t, tau, x, y, z, E, T, IL, s_1_array, s_2_array, Fitness
 
 
-def parse_antigenicity_from_filename(filepath, offset=1.0):
+# Function to load data from a CSV file
+def _load_data_dixon(filepath):
+    file_path = filepath
+    print(f"Reading data from {file_path}")
+    with open(file_path, 'r', newline='') as csvfile:
+        # Create a DictReader object
+        csv_dict_reader = csv.DictReader(csvfile)
+        
+        t,tau,C1,C2,I,T,C1_bar,C2_bar,I_bar,T_bar,s,alpha,Fitness = [], [], [], [], [], [], [], [], [], [], [], [], []
+        
+        for row in csv_dict_reader:
+            if row['t'] == '':
+                continue  # Skip rows with empty t
+
+            t.append(float(row['t']))
+            tau.append(_parse_optional_float(row['tau']))
+            C1.append(_parse_optional_float(row['C1']))
+            C2.append(_parse_optional_float(row['C2']))
+            I.append(_parse_optional_float(row['I']))
+            T.append(_parse_optional_float(row['T']))
+            C1_bar.append(_parse_optional_float(row['C1_bar']))
+            C2_bar.append(_parse_optional_float(row['C2_bar']))
+            I_bar.append(_parse_optional_float(row['I_bar']))
+            T_bar.append(_parse_optional_float(row['T_bar']))
+            s.append(_parse_optional_float(row['s']))
+            alpha.append(_parse_optional_float(row['alpha']))
+            Fitness.append(_parse_optional_float(row['Fitness']))
+    
+    return t,tau,C1,C2,I,T,C1_bar,C2_bar,I_bar,T_bar,s,alpha,Fitness
+
+
+def parse_sweep_value_from_filename(filepath, offset=0.0):
+    """Read the final numeric suffix, with an optional trailing underscore.
+
+    Supports decimal and scientific notation. Dixon stores alpha directly;
+    legacy KP sweeps store c + 1 and require offset=1.0.
+    """
     filename = os.path.basename(filepath)
-    match = re.search(r'_(-?\d+(?:\.\d+)?)_\.csv$', filename)
+    match = re.search(
+        r'_([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)_?\.csv$',
+        filename,
+    )
     if match is None:
-        raise ValueError(f"Could not extract antigenicity from filename: {filepath}")
+        raise ValueError(f"Could not extract sweep value from filename: {filepath}")
     return float(match.group(1)) - offset
 
 
+def parse_antigenicity_from_filename(filepath, offset=1.0):
+    """Read a legacy KP antigenicity suffix, subtracting its storage offset."""
+    return parse_sweep_value_from_filename(filepath, offset=offset)
+
+
 def sorted_sweep_files(pattern, offset=1.0):
+    """Sort files numerically; use offset=0.0 for direct Dixon alpha values."""
     filepaths = glob.glob(pattern)
-    filepaths.sort(key=lambda path: parse_antigenicity_from_filename(path, offset=offset))
-    antigenicity_values = np.array(
-        [parse_antigenicity_from_filename(path, offset=offset) for path in filepaths]
+    filepaths.sort(key=lambda path: parse_sweep_value_from_filename(path, offset=offset))
+    sweep_values = np.array(
+        [parse_sweep_value_from_filename(path, offset=offset) for path in filepaths]
     )
-    return filepaths, antigenicity_values
+    return filepaths, sweep_values
 
 
 def _resolve_sweep_inputs(filepaths, antigenicity_values, offset=1.0):
@@ -134,10 +199,16 @@ def _segment_frequency_axis(time_segment):
 
 
 # function to extract features from data files
-def extract_features(filepath, antigenicity_values):
+def extract_features(filepath, antigenicity_values, *, value_column="y", offset=1.0):
+    """Extract trajectory summaries; defaults preserve the KP y/c convention.
+
+    Dixon callers use value_column='T' and offset=0.0 for alpha filenames.
+    The first feature column is the sweep value, for labeling; exclude it
+    when clustering trajectories without using the parameter as a feature.
+    """
     import pandas as pd
 
-    filepath, c_vals = _resolve_sweep_inputs(filepath, antigenicity_values)
+    filepath, c_vals = _resolve_sweep_inputs(filepath, antigenicity_values, offset=offset)
 
     amplitudes = []
     max_vals1 = []
@@ -149,11 +220,11 @@ def extract_features(filepath, antigenicity_values):
     for idx, f in enumerate(filepath):
         df = pd.read_csv(f)
 
-        y = pd.to_numeric(df["y"], errors="coerce").to_numpy()
+        y = pd.to_numeric(df[value_column], errors="coerce").to_numpy()
         y = y[np.isfinite(y)]
         if y.size < 1500:
             raise ValueError(
-                f"{f} does not contain enough numeric y-values for feature extraction."
+                f"{f} does not contain enough numeric '{value_column}' values for feature extraction."
             )
 
         tail = y[-500:]
@@ -185,17 +256,20 @@ def extract_features(filepath, antigenicity_values):
     features = np.vstack((c_vals, amplitudes_0, max1_non, max2_non, ave1_non, ave2_non)).T
     return features, c_vals, amplitudes_0
 
-def osc_features(filepath, antigenicity_values):
+def osc_features(filepath, antigenicity_values, *, value_column="y", offset=1.0,
+                 time_columns=("tau", "t"), detrend=False):
     """
-    Extract FFT coefficients, amplitudes, and frequency axes for fixed y-segments.
+    Extract FFT coefficients, amplitudes, and frequency axes for four segments.
 
     When the filepath names encode antigenicity, the files are sorted and labeled
     from the filenames so the returned c-values stay aligned even if the caller
-    passes an unsorted glob list.
+    passes an unsorted glob list. Dixon callers select value_column='T',
+    offset=0.0, and time_columns=('t',) for frequencies in cycles/day.
+    detrend=True removes each segment's mean before computing the FFT.
     """
     from scipy.fft import fft
 
-    filepath, c_vals = _resolve_sweep_inputs(filepath, antigenicity_values)
+    filepath, c_vals = _resolve_sweep_inputs(filepath, antigenicity_values, offset=offset)
 
     fft_initials = []
     fft_center1s = []
@@ -217,13 +291,19 @@ def osc_features(filepath, antigenicity_values):
 
     for f in filepath:
         y, time_values = _load_numeric_series(
-            f, value_column="y", min_length=min_length
+            f, value_column=value_column, min_length=min_length, time_columns=time_columns
         )
 
         initial = y[:segment_length]
         center1 = y[500:1000]
         center2 = y[1000:1500]
         tail = y[-segment_length:]
+
+        if detrend:
+            initial = initial - initial.mean()
+            center1 = center1 - center1.mean()
+            center2 = center2 - center2.mean()
+            tail = tail - tail.mean()
 
         time_initial = time_values[:segment_length]
         time_center1 = time_values[500:1000]

@@ -1,4 +1,6 @@
-"""ctypes bridge for integration.c. Build: python3 -m Model.native_integration --build"""
+"""
+ctypes bridge for integration.c. Build: python3 -m Model.native_integration --build
+"""
 
 import argparse
 import ctypes
@@ -11,20 +13,23 @@ import sys
 
 import numpy as np
 
+# Paths to the C source and compiled library.
 SOURCE_PATH = Path(__file__).with_name("integration.c")
 LIBRARY_PATH = SOURCE_PATH.with_name(
-    "_integration.dylib" if sys.platform == "darwin" else "_integration.so"
+    "_integration_v3.dylib" if sys.platform == "darwin" else "_integration_v3.so"
 )
 
 
 def build_library():
-    """Build machine-specific code; do this again after changing the C source."""
+    """
+    Build machine-specific code; do this again after changing the C source.
+    """
     if sys.platform not in ("darwin", "linux"):
         raise RuntimeError("The build command currently supports macOS and Linux.")
     command = shlex.split(os.environ.get("CC", "cc")) + [
         "-std=c99", "-O3", "-Wall", "-Wextra", "-Werror", "-ffp-contract=off",
         "-fPIC", "-dynamiclib" if sys.platform == "darwin" else "-shared",
-        str(SOURCE_PATH), "-o", str(LIBRARY_PATH),
+        str(SOURCE_PATH), "-o", str(LIBRARY_PATH), "-lm",
     ]
     subprocess.run(command, check=True)
     return LIBRARY_PATH
@@ -32,9 +37,17 @@ def build_library():
 
 @lru_cache(maxsize=1)
 def _load_library():
+    """
+    Load the compiled C library for integration.
+    """
     try:
         library = ctypes.CDLL(str(LIBRARY_PATH))
-    except OSError as error:
+        version = library.kp_integrator_version
+        version.argtypes = []
+        version.restype = ctypes.c_int
+        if version() != 3:
+            raise RuntimeError("Loaded an incompatible KP C integrator; rebuild and restart the kernel.")
+    except (OSError, AttributeError) as error:
         raise RuntimeError(
             "Cannot load the C integrator. Run 'python3 -m Model.native_integration "
             "--build' from the project root, then restart your kernel."
@@ -48,11 +61,20 @@ def _load_library():
     return library
 
 
+def integrator_version():
+    """Return the version of the C code actually loaded in this process."""
+    return _load_library().kp_integrator_version()
+
+
 def integrate_native(state, params, t_span, *, method="rk4", t_step=0.01):
-    """Return the final state from fixed-step forward integration.
+    """
+    Return the final state from stability-limited forward integration.
 
     params must use the Python integrator's 13-value order, including s_1/s_2.
-    The step size is internal to this call; parameters are held constant.
+    t_step is the maximum internal step; nonnegative models may use smaller
+    steps for stability and to keep nonnegative models nonnegative. Signed
+    experiments retain signed x/z, but cannot jump across poles or flip y.
+    Parameters are held constant. This is not adaptive error control.
     """
     if method not in ("euler", "rk4"):
         raise ValueError("C method must be 'euler' or 'rk4'.")
@@ -83,7 +105,9 @@ def integrate_native(state, params, t_span, *, method="rk4", t_step=0.01):
         raise ValueError(f"C integrator rejected its inputs (status {status}).")
     if status == 3:
         raise FloatingPointError(
-            "C integration encountered a zero model denominator or nonfinite arithmetic."
+            "C integration encountered a zero model denominator, nonfinite arithmetic, "
+            "or could not find a stable step within the current model domain. "
+            f"method={method}, t_span={t_span.tolist()}, state={state.tolist()}."
         )
     if status == 4:
         raise FloatingPointError("t_step is too small to advance time at this t_span.")

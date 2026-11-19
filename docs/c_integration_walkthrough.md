@@ -28,8 +28,10 @@ reference = integrator.integrate(state, params, (0, 0.36))  # Existing SciPy RK4
 
 For an existing simulation loop, add `method="rk4", t_step=...` to its
 `integrator.integrate(...)` call to select C. Existing calls still use RK45.
-`t_step` is the internal numerical step, in the same non-dimensional time units
-as `t_span`. It can be much smaller than the interval between controller updates.
+`t_step` is the maximum internal numerical step, in the same non-dimensional
+time units as `t_span`. For nonnegative states and coefficients, the C solver
+shortens it using the decay and tumor-killing rates and retries any trial
+that produces a negative or nonfinite intermediate state. It can be much smaller than the interval between controller updates.
 Parameters and dosing remain constant during each call, matching the existing
 Python integrator. The function returns the final `[x, y, z]`, not a trajectory.
 
@@ -78,9 +80,13 @@ before calling `kp_rhs` because the equations are coupled.
 
 ## Accuracy and choosing a step
 
-These C methods use fixed steps. They do not implement RK45's adaptive error
-control or its `rtol` and `atol`. The default C step of 0.01 is a starting value,
-not an accuracy guarantee. Neither method guarantees positive populations.
+These C methods limit their steps for stability when states and coefficients
+are nonnegative. They reject negative intermediate and final trial states
+and retry from the preceding accepted state with a smaller step. They do not
+clip accepted populations to zero. Signed inputs also receive stability limits; signed immune and IL-2 states
+are retained. Trial stages cannot cross a model denominator pole or change
+the tumor sign, which is invariant for regular solutions of the KP equations. This is not RK45's adaptive error control: the default maximum step
+of 0.01 remains a starting value, not an accuracy guarantee.
 
 Compare against RK45 for your parameters, then halve the C step and compare
 again. For smooth solutions with sufficiently small stable steps, Euler's
@@ -102,3 +108,15 @@ Run the tests with:
 ```sh
 python3 -m pytest tests/test_native_integration.py
 ```
+
+The current shared library is versioned (`_integration_v3`) to avoid loading an
+older binary already held by a notebook process. The KP notebook prints
+`Loaded KP C integrator version: 3` before a C simulation or sweep. Rebuild
+with `python3 -m Model.native_integration --build` after source changes.
+
+The KP GA antigenicity sweep retains its full original range, including
+negative values for mathematical experiments. Negative x/z in those cases
+are permitted and remain in the output; no clipping changes the equations.
+The resume check requires finite states, consistent times, and nonnegative
+tumor values, plus nonnegative x/z for nonnegative antigenicity. Existing
+valid signed experiment CSVs are therefore retained and skipped on resume.

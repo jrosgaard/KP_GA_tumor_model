@@ -92,38 +92,25 @@ def kp_coupled(t, state,
     return [dxdt, dydt, dzdt]
 
 
-# --------------------------------------------------------------------
-# Below is the code for the dimensional KP model, which is not used in the GA but is included for completeness.
-
-# Kirschner-Panetta eqs. 1-3
-def kp_dE_dt(t, E, T, I_L, s_1, c, mu_2, p_1, g_1):
+def jacobian_log_kp(t, state, 
+                    c, mu_2, p_1, g_1, s_1, r_2, b, alpha, g_2, p_2, g_3, mu_3, s_2,
+                    *, active=(True, True, True)):
     """
-    Equation for activated immune cells or effector cells.
+    Analytical Jacobian for the logarithmic KP equations.
     """
-    dE_dt = c*T - mu_2*E + (p_1*E*I_L)/(g_1 + I_L) + s_1
-    return dE_dt
+    import numpy as np
 
-def kp_dT_dt(t, T, E, alpha, g_2, growth_function=1, eta=0.18, W=1):
-    """
-    Equation for tumor cells.
-    """
-    del t
-
-    if growth_function == 1:
-        growth = eta
-    elif growth_function == 2:
-        if W == 0:
-            raise ValueError("W must be non-zero when using logistic growth.")
-        growth = eta * (1 - T / W)
-    else:
-        raise ValueError("Invalid tumor growth function.")
-
-    dT_dt = growth * T - (alpha * E * T) / (g_2 + T)
-    return dT_dt
-
-def kp_dIL_dt(t, IL, E, T, IL_input, s_2, p_2, mu_3, g_3):
-    """
-    Equation for IL-2 in the single tumor site being modelled.
-    """ 
-    dIL_dt = (p_2*E*T)/(g_3 + T) - mu_3*IL + s_2 + IL_input
-    return dIL_dt
+    x, y, z = np.where(active, np.exp([state[0], state[1], min(state[3], 0)]), 0)
+    dt_dlogt = z if state[3] <= 0 else 0
+    jacobian = np.zeros((4, 4))
+    if active[0]:
+        jacobian[0, 3] = x*dt_dlogt
+    if active[1]:
+        jacobian[1, 3] = y*dt_dlogt
+        jacobian[1, 2] = g_2/(g_2 + state[2])**2
+    jacobian[2, 0] = x*p_2/(g_3 + y)
+    jacobian[2, 2] = -mu_3
+    if active[2]:
+        jacobian[3, 1] = -alpha*x
+        jacobian[3, 3] = -dt_dlogt
+    return jacobian

@@ -1,6 +1,6 @@
 /*
  * Population fitness for the non-dimensional Kirschner-Panetta model.
- * Compare this with GeneticAlgorithm.fitness_func in fitness_function.py.
+ * Compare this with GeneticAlgorithmKP.fitness_func in fitness_function_KP.py.
  *
  * Python stores the arrays. C borrows their addresses for this call,
  * reads the inputs, and writes one result per candidate into fitness_out.

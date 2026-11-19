@@ -1,5 +1,8 @@
 This file shows the list of output data folders and their respective data.
 
+
+
+simu_data_test0.csv: 
 simu_data_test1.csv: No GA influence. c = 0.0297
 simu_data_test2.csv: GA influence. c = 0.0297
 simu_data_test3.csv: No GA influence. c = 
@@ -8,16 +11,17 @@ simu_data_test5.csv: No GA influence. c = 0.
 simu_data_test6.csv: No GA influence. c = 0.
 
 
-
-
-c_sweep:
-Sweep through 53 c values.
+0001_c_sweep_0:
+    Sweep through 53 c values.
 
 c_sweep_ga0:
 
 c_sweep_ga1:
 
 c_sweep_ga_gomp_0:
-Sweep through 50 c values.
-Growth function set to Gompertzian (5)
+    Sweep through 50 c values.
+    Growth function set to Gompertzian (5)
 
+
+dixon_alpha_sweep_no_treatment:
+    Sweep through alpha values.

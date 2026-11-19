@@ -1,7 +1,7 @@
 # Learning C through the population fitness evaluator
 
-The starting point is `GA/population_fitness.c`. It implements the same fitness
-formula as `GeneticAlgorithm.fitness_func`, with one loop over a population.
+The starting point is `GA/population_fitness_KP.c`. It implements the same fitness
+formula as `GeneticAlgorithmKP.fitness_func`, with one loop over a population.
 The Python function is kept as a readable reference and for correctness tests.
 
 ## Build and use it
@@ -9,20 +9,20 @@ The Python function is kept as a readable reference and for correctness tests.
 From the project root, using the Python environment where you run the notebooks:
 
 ```sh
-python3 -m GA.native_fitness --build
+python3 -m GA.native_fitness_KP --build
 ```
 
 This requires a C compiler (`cc`). On macOS the build produces
-`GA/_population_fitness.dylib`; on Linux it produces a `.so` file. These are
+`GA/_population_fitness_KP.dylib`; on Linux it produces a `.so` file. These are
 shared libraries: compiled machine code that Python can load into its process.
 They are ignored by Git because each machine should build its own copy.
 Rebuild after editing the C source, then restart your notebook kernel: an
 already running process can retain the previously loaded machine code.
 
-Both GA configurations in `main.ipynb` now use:
+Both GA configurations in `main_kp.ipynb` now use:
 
 ```python
-fitness_func=GeneticAlgorithm.fitness_func_batch,
+fitness_func=GeneticAlgorithmKP.fitness_func_batch,
 fitness_batch_size=100,
 ```
 
@@ -32,13 +32,13 @@ The evaluator handles any number of rows, including one.
 See the [PyGAD batch interface documentation](https://pygad.readthedocs.io/en/stable/fitness_calculation.html#batch-fitness-calculation).
 
 To switch back to the reference implementation, change the callback to
-`GeneticAlgorithm.fitness_func` and remove `fitness_batch_size`.
+`GeneticAlgorithmKP.fitness_func` and remove `fitness_batch_size`.
 
 ## Follow one call
 
 1. PyGAD gives `fitness_func_batch` a two-dimensional array of genes.
 2. The callback resolves the same environment defaults and overrides as before.
-3. `GA/native_fitness.py` checks the inputs and prepares contiguous float64 arrays.
+3. `GA/native_fitness_KP.py` checks the inputs and prepares contiguous float64 arrays.
 4. Python's built-in `ctypes` passes their memory addresses to the compiled C function.
 5. C reads each candidate's eight genes, computes the fitness, and writes a result.
 6. Python returns the filled NumPy array to PyGAD.
